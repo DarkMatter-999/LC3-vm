@@ -27,4 +27,6 @@ fn runimage(path: &str) {
             exit(64);
         }
     }
+
+    cpu.run();
 }

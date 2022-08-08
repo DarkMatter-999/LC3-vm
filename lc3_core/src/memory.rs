@@ -11,4 +11,12 @@ impl Mem {
             memory: [0; memory_max]
         }
     }
+
+    pub fn read(&self, addr: usize) -> u16 {
+        self.memory[addr]
+    }
+
+    pub fn write(&mut self, addr: usize, val: u16) {
+        self.memory[addr] = val;
+    }
 }
