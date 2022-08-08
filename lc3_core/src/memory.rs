@@ -2,7 +2,7 @@
 const memory_max: usize = 1 << 16;
 
 pub struct Mem {
-    memory: [i32; memory_max]
+    pub memory: [u16; memory_max]
 }
 
 impl Mem {

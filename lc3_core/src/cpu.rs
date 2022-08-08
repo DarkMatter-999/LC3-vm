@@ -1,7 +1,7 @@
-use crate::memory::Mem;
+use crate::memory::{Mem, self};
 
 
-const PC_START: i32 = 0x3000;
+const PC_START: i16 = 0x3000;
 
 enum Flags {
     FlPos = 1 << 0, /* P */
@@ -29,17 +29,17 @@ enum OPCodes {
 }
 
 pub struct CPU {
-    rr0 : i32,
-    rr1 : i32,
-    rr2 : i32,
-    rr3 : i32,
-    rr4 : i32,
-    rr5 : i32,
-    rr6 : i32,
-    rr7 : i32,
-    pc : i32,
-    rcond : i32,
-    rcount : i32,
+    rr0 : i16,
+    rr1 : i16,
+    rr2 : i16,
+    rr3 : i16,
+    rr4 : i16,
+    rr5 : i16,
+    rr6 : i16,
+    rr7 : i16,
+    pc : i16,
+    rcond : i16,
+    rcount : i16,
     memory: Mem
 }
 
@@ -59,5 +59,33 @@ impl CPU {
             rcount : 0,
             memory : Mem::new()
         }
+    }
+
+    pub fn run(&mut self) {
+
+    }
+
+    fn fetch() {}
+
+    pub fn load_image(&mut self, image: &Vec<u8>) {
+        let origin: u16 = ((image[0] as u16) << 8) | (image[1] as u16);
+
+        println!("{:#01x}", origin);
+
+        for i in 2..image.len() {
+            self.memory.memory[(origin as usize +i)] = image[i] as u16;
+        }
+
+        let mut count = image.len();
+        let mut temp: u16;
+        while(count > 0) {
+            temp = self.memory.memory[origin as usize + count];
+            self.memory.memory[origin as usize + count] = self.memory.memory[origin as usize + count + 1];
+            self.memory.memory[origin as usize + count + 1] = temp;
+
+            count -= 2;
+        }
+
+        println!("{:x?}", &self.memory.memory);
     }
 }
