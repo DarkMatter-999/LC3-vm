@@ -99,4 +99,15 @@ impl TrapCodes {
             Self::TrapHalt => 0x25   /* halt the program */
         }
     }
+    pub fn from(inst: u16) -> TrapCodes {
+        match inst {
+            0x20 => Self::TrapGetC,
+            0x21 => Self::TrapOut,
+            0x22 => Self::TrapPuts,
+            0x23 => Self::TrapIn,
+            0x24 => Self::TrapPutsP,
+            0x25 => Self::TrapHalt,
+            _ => Self::TrapHalt
+        }
+    }
 }

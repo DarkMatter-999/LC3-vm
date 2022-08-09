@@ -1,3 +1,5 @@
+use std::io::{self, Read};
+use std::io::Write;
 use crate::memory::{Mem, self};
 use crate::instructions::*;
 
@@ -16,7 +18,8 @@ pub struct CPU {
     pc : usize,
     rcond : u16,
     rcount : u16,
-    memory: Mem
+    memory: Mem,
+    running: bool
 }
 
 impl CPU {
@@ -33,19 +36,20 @@ impl CPU {
             pc : PC_START,
             rcond : 0,
             rcount : 0,
-            memory : Mem::new()
+            memory : Mem::new(),
+            running: true
         }
     }
 
     pub fn run(&mut self) {
         self.rcond = Flags::value(&Flags::FlZro);
 
-        loop {
+        while(self.running) {
             let inst = self.fetch();
 
             let op = inst >> 12;
 
-            println!("{:x?}", op);
+            // println!("{:x?}", op);
 
             match(OPCodes::from(op)) {
                 OPCodes::OpBr => self.br(inst),
@@ -64,10 +68,6 @@ impl CPU {
                 OPCodes::OpRes => self.res(inst),
                 OPCodes::OpLea => self.lea(inst),
                 OPCodes::OpTrap => self.trap(inst),
-            }
-
-            if(self.pc > 0xffff) {
-                break;
             }
         }
     }
@@ -277,6 +277,86 @@ impl CPU {
     }
 
     fn trap(&mut self, inst: u16) {
-        // TODO implementaion
+        match TrapCodes::from(inst) {
+            TrapCodes::TrapGetC => self.trap_getc(),
+            TrapCodes::TrapOut => self.out(),
+            TrapCodes::TrapPuts => self.trap_puts(),
+            TrapCodes::TrapIn => self.in_(),
+            TrapCodes::TrapPutsP => self.trap_putsp(),
+            TrapCodes::TrapHalt => self.halt(),
+        }
+    }
+
+    fn trap_getc(&mut self) {
+        io::stdout().flush().expect("Flushed.");
+        let mut buffer = [0; 1];
+        std::io::stdin().read_exact(&mut buffer).unwrap();
+        
+        self.update_flags(self.rr0);
+    }
+
+    fn out(&mut self) {
+        print!("{}", std::char::from_u32(self.rr0 as u32).unwrap_or(' '));
+        io::stdout().flush().expect("Flushed.");
+    }
+
+    fn trap_puts(&mut self) {
+        /* one char per word */
+        let mut count = 0;
+        loop {
+            let chr = self.memory.read(self.rr0 as usize + count);
+            if (chr == 0) {
+                break;
+            }
+
+            let chr = std::char::from_u32(chr as u32);
+            print!("{}", chr.unwrap_or(' '));
+            count += 1;
+        }
+
+        io::stdout().flush().expect("Flushed.");
+    }
+
+    fn in_(&mut self) {
+        print!("Enter a character: ");
+
+        let mut buffer = [0; 1];
+        std::io::stdin().read_exact(&mut buffer).unwrap();
+        let chr = std::char::from_u32(buffer[0] as u32);
+
+        print!("{}", std::char::from_u32(self.rr0 as u32).unwrap_or(' '));
+        io::stdout().flush().expect("Flushed.");
+
+        self.rr0 = buffer[0] as u16;
+
+        self.update_flags(self.rr0);
+    }
+
+    fn trap_putsp(&mut self) {
+        /* one char per byte (two bytes per word)
+        here we need to swap back to
+        big endian format */
+        let mut count = 0;
+        loop {
+            let chr = self.memory.read(self.rr0 as usize + count);
+            if (chr == 0) {
+                break;
+            }
+
+            let chr1 = std::char::from_u32((chr & 0xFF) as u32);
+            print!("{}", chr1.unwrap_or(' '));
+            let chr2 = std::char::from_u32((chr >> 8) as u32);
+            print!("{}", chr2.unwrap_or(' '));
+
+            count += 1;
+        }
+
+        io::stdout().flush().expect("Flushed.");
+    }
+
+    fn halt(&mut self) {
+        println!("HALTING");
+        io::stdout().flush().expect("Flushed.");
+        self.running = false;
     }
 }
