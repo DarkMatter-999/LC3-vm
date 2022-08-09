@@ -215,10 +215,10 @@ impl CPU {
 
         if (long_flag != 0) {
             let long_pc_offset = self.sign_extend(inst & 0x7FF, 11);
-            self.pc += long_pc_offset as usize;  /* JSR */
+            self.pc = (self.pc as u16).wrapping_add(long_pc_offset) as usize;  /* JSR */
         } else {
             let r1 = (inst >> 6) & 0x7;
-            self.pc = self.rr1 as usize; /* JSRR */
+            self.pc = *self.get_reg(r1) as usize; /* JSRR */
         }
     }
 
@@ -307,7 +307,8 @@ impl CPU {
 
     fn jmp(&mut self, inst: u16) {
         let r = (inst >> 6) & 0x7;
-        self.pc = *self.get_reg(r) as usize;
+        let r = *self.get_reg(r);
+        self.pc = r as usize;
     }
 
     fn res(&mut self, inst: u16) {
@@ -317,7 +318,7 @@ impl CPU {
     fn lea(&mut self, inst: u16) {
         let r0 = (inst >> 9) & 0x7;
         let pc_offset = self.sign_extend(inst & 0x1FF, 9);
-        self.set_reg(r0, self.pc as u16 + pc_offset);
+        self.set_reg(r0, (self.pc as u16).wrapping_add(pc_offset));
         
         self.update_flags(r0);
     }

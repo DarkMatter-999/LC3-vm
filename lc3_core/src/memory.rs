@@ -35,7 +35,6 @@ impl Mem {
     fn keyboard(&mut self) {
         let mut buffer = [0; 1];
         std::io::stdin().read_exact(&mut buffer).unwrap();
-        println!("hereee");
         if buffer[0] != 0 {
             self.write(MemoryMappedReg::kbsr as usize, 1 << 15);
             self.write(MemoryMappedReg::kbdr as usize, buffer[0] as u16);
