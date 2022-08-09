@@ -46,6 +46,29 @@ impl CPU {
             let op = inst >> 12;
 
             println!("{:x?}", op);
+
+            match(OPCodes::from(op)) {
+                OPCodes::OpBr => self.br(),
+                OPCodes::OpAdd => self.add(),
+                OPCodes::OpLd => self.ld(),
+                OPCodes::OpSt => self.st(),
+                OPCodes::OpJsr => self.jsr(),
+                OPCodes::OpAnd => self.and_(),
+                OPCodes::OpLdr => self.ldr(),
+                OPCodes::OpStr => self.str(),
+                OPCodes::OpRti => self.rti(),
+                OPCodes::OpNot => self.not(),
+                OPCodes::OpLdi => self.ldi(),
+                OPCodes::OpSti => self.sti(),
+                OPCodes::OpJmp => self.jmp(),
+                OPCodes::OpRes => self.res(),
+                OPCodes::OpLea => self.lea(),
+                OPCodes::OpTrap => self.trap(),
+            }
+
+            if(self.pc > 0xffff) {
+                break;
+            }
         }
     }
 
@@ -75,5 +98,41 @@ impl CPU {
         }
 
         // println!("{:x?}", &self.memory.memory);
+    }
+
+    fn sign_extend(x: u16, bit_count: u16) -> u16 {
+        if ((x >> (bit_count - 1)) & 1) > 0 {
+            x |= (0xFFFF << bit_count);
+        }
+
+        return x;
+    }
+
+    fn get_reg(&self, r: u16) -> &u16 {
+        match r {
+            0 => &self.rr0,
+            1 => &self.rr1,
+            2 => &self.rr2,
+            3 => &self.rr3,
+            4 => &self.rr4,
+            5 => &self.rr5,
+            6 => &self.rr6,
+            7 => &self.rr7,
+            // 8 => &self.pc,
+            9 => &self.rcond,
+            10 => &self.rcount,
+            _ => &0
+        }
+    }
+
+    fn update_flags(&mut self, r: u16) {
+        if (*self.get_reg(r) == 0) {
+            self.rcond = Flags::value(&Flags::FlZro);
+        } else if ((*self.get_reg(r) >> 15) > 0) {
+            /* a 1 in the left-most bit indicates negative */
+            self.rcond = Flags::value(&Flags::FlNeg);
+        } else {
+            self.rcond = Flags::value(&Flags::FlPos);
+        }
     }
 }
