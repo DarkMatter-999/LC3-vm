@@ -15,6 +15,7 @@ impl Flags {
     }
 }
 
+#[derive(Debug)]
 pub enum OPCodes {
     OpBr,     /* branch */
     OpAdd,    /* add  */
@@ -107,7 +108,7 @@ impl TrapCodes {
             0x23 => Self::TrapIn,
             0x24 => Self::TrapPutsP,
             0x25 => Self::TrapHalt,
-            _ => Self::TrapHalt
+            _ => panic!("Illegal instruction")
         }
     }
 }

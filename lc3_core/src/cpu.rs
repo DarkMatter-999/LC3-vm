@@ -49,7 +49,8 @@ impl CPU {
 
             let op = inst >> 12;
 
-            // println!("{:x?}", op);
+            // println!("{:?}", OPCodes::from(op));
+            // println!("PC 0x{:x?}", self.pc - 0x3000);
 
             match(OPCodes::from(op)) {
                 OPCodes::OpBr => self.br(inst),
@@ -109,7 +110,7 @@ impl CPU {
         return x;
     }
 
-    fn get_reg(&self, r: u16) -> &u16 {
+    fn get_reg(&mut self, r: u16) -> &u16 {
         match r {
             0 => &self.rr0,
             1 => &self.rr1,
@@ -123,6 +124,23 @@ impl CPU {
             9 => &self.rcond,
             10 => &self.rcount,
             _ => &0
+        }
+    }
+
+    fn set_reg(&mut self, r: u16, val: u16)  {
+        match r {
+            0 => self.rr0 = val,
+            1 => self.rr1 = val,
+            2 => self.rr2 = val,
+            3 => self.rr3 = val,
+            4 => self.rr4 = val,
+            5 => self.rr5 = val,
+            6 => self.rr6 = val,
+            7 => self.rr7 = val,
+            // 8 => self.pc = val,
+            9 => self.rcond = val,
+            10 => self.rcount = val,
+            _ => println!("Cannot find register {}", r)
         }
     }
 
@@ -142,26 +160,32 @@ impl CPU {
         let cond_flag = (inst >> 9) & 0x7;
 
         if ((cond_flag & self.rcond) != 0) {
-            self.pc += offset as usize;
+            // self.pc += offset as usize;
+            let val = (self.pc as u16).wrapping_add(offset);
+            self.pc = val as usize;
         }
     }
 
     fn add(&mut self, inst: u16) {
         /* destination register (DR) */
         let r0 = (inst >> 9) & 0x7;
-
         /* first operand (SR1) */
         let r1 = (inst >> 6) & 0x7;
-
         /* whether we are in immediate mode */
         let imm_flag = (inst >> 5) & 0x1;
 
-        if (imm_flag != 0) {
+        if (imm_flag != 0)
+        {
             let imm5 = self.sign_extend(inst & 0x1F, 5);
-            self.rr0 = self.rr1 + imm5;
-        } else {
+            let r = *self.get_reg(r1);
+            self.set_reg(r0, r.wrapping_add(imm5));
+        }
+        else
+        {
             let r2 = inst & 0x7;
-            self.rr0 = self.rr1 + self.rr2;
+            let r = *self.get_reg(r1);
+            let l = *self.get_reg(r2);
+            self.set_reg(r0, r.wrapping_add(l));
         }
 
         self.update_flags(r0);
@@ -169,16 +193,20 @@ impl CPU {
 
     fn ld(&mut self, inst: u16) {
         let r0 = (inst >> 9) & 0x7;
-        let pc_offset = self.sign_extend(inst & 0x1FF, 9) as usize;
-        self.rr0 = self.memory.read(self.pc + pc_offset);
+        let pc_offset = self.sign_extend(inst & 0x1FF, 9);
+        let val = self.memory.read((self.pc as u16).wrapping_add(pc_offset) as usize);
         
+        self.set_reg(r0, val);
+
         self.update_flags(r0);
     }
 
     fn st(&mut self, inst: u16) {
         let r0 = (inst >> 9) & 0x7;
-        let pc_offset = self.sign_extend(inst & 0x1FF, 9) as usize;
-        self.memory.write(self.pc + pc_offset, self.rr0);
+        let pc_offset = self.sign_extend(inst & 0x1FF, 9);
+
+        let val = (self.pc as u16).wrapping_add(pc_offset);
+        self.memory.write(val as usize, self.rr0);
     }
 
     fn jsr(&mut self, inst: u16) {
@@ -202,12 +230,16 @@ impl CPU {
         if (imm_flag != 0)
         {
             let imm5 = self.sign_extend(inst & 0x1F, 5);
-            self.rr0 = self.rr1 & imm5;
+            let val = *self.get_reg(r1) & imm5;
+
+            self.set_reg(r0, val);
         }
         else
         {
             let r2 = inst & 0x7;
-            self.rr0 = self.rr1 & self.rr2;
+            let val = *self.get_reg(r1) & *self.get_reg(r2);
+
+            self.set_reg(r0, val);
         }
         
         self.update_flags(r0);
@@ -217,7 +249,11 @@ impl CPU {
         let r0 = (inst >> 9) & 0x7;
         let r1 = (inst >> 6) & 0x7;
         let offset = self.sign_extend(inst & 0x3F, 6);
-        self.rr0 = self.memory.read((self.rr1 + offset) as usize);
+
+        let r1 = *self.get_reg(r1);
+        let val = self.memory.read((r1 + offset) as usize);
+
+        self.set_reg(r0, val);
         
         self.update_flags(r0);
     }
@@ -226,7 +262,10 @@ impl CPU {
         let r0 = (inst >> 9) & 0x7;
         let r1 = (inst >> 6) & 0x7;
         let offset = self.sign_extend(inst & 0x3F, 6);
-        self.memory.write((self.rr1 + offset) as usize, self.rr0);
+
+        let r0 = *self.get_reg(r0);
+        let r1 = *self.get_reg(r1);
+        self.memory.write((r1.wrapping_add(offset)) as usize, r0);
     }
 
     fn rti(&mut self, inst: u16) {
@@ -237,7 +276,8 @@ impl CPU {
         let r0 = (inst >> 9) & 0x7;
         let r1 = (inst >> 6) & 0x7;
 
-        self.rr0 = !self.rr1;
+        let val = *self.get_reg(r1);
+        self.set_reg(r0, !val);
         self.update_flags(r0);
     }
 
@@ -246,22 +286,28 @@ impl CPU {
         let r0 = (inst >> 9) & 0x7;
 
         /* PCoffset 9*/
-        let pc_offset = self.sign_extend(inst & 0x1FF, 9) as usize;
+        let pc_offset = self.sign_extend(inst & 0x1FF, 9);
 
         /* add pc_offset to the current PC, look at that memory location to get the final address */
-        self.rr0 = self.memory.read(self.memory.read(self.pc + pc_offset) as usize);
+        let addr = self.memory.read((self.pc as u16).wrapping_add(pc_offset) as usize);
+        
+        let val = self.memory.read(addr as usize);
+        self.set_reg(r0, val);
         self.update_flags(r0);
     }
 
     fn sti(&mut self, inst: u16) {
         let r0 = (inst >> 9) & 0x7;
-        let pc_offset = self.sign_extend(inst & 0x1FF, 9) as usize;
-        self.memory.write(self.memory.read(self.pc + pc_offset) as usize, self.rr0);
+        let pc_offset = self.sign_extend(inst & 0x1FF, 9);
+        let addr = self.memory.read((self.pc as u16).wrapping_add(pc_offset) as usize);
+        
+        let val = *self.get_reg(r0);
+        self.memory.write(addr as usize, val);
     }
 
     fn jmp(&mut self, inst: u16) {
-        let r1 = (inst >> 6) & 0x7;
-        self.pc = self.rr1 as usize;
+        let r = (inst >> 6) & 0x7;
+        self.pc = *self.get_reg(r) as usize;
     }
 
     fn res(&mut self, inst: u16) {
@@ -271,63 +317,65 @@ impl CPU {
     fn lea(&mut self, inst: u16) {
         let r0 = (inst >> 9) & 0x7;
         let pc_offset = self.sign_extend(inst & 0x1FF, 9);
-        self.rr0 = self.pc as u16 + pc_offset;
+        self.set_reg(r0, self.pc as u16 + pc_offset);
         
         self.update_flags(r0);
     }
 
     fn trap(&mut self, inst: u16) {
-        match TrapCodes::from(inst) {
+        match TrapCodes::from(inst & 0xFF) {
             TrapCodes::TrapGetC => self.trap_getc(),
-            TrapCodes::TrapOut => self.out(),
+            TrapCodes::TrapOut => self.trap_out(),
             TrapCodes::TrapPuts => self.trap_puts(),
-            TrapCodes::TrapIn => self.in_(),
+            TrapCodes::TrapIn => self.trap_in_(),
             TrapCodes::TrapPutsP => self.trap_putsp(),
-            TrapCodes::TrapHalt => self.halt(),
+            TrapCodes::TrapHalt => self.trap_halt(),
         }
     }
 
     fn trap_getc(&mut self) {
-        io::stdout().flush().expect("Flushed.");
+        // io::stdout().flush().expect("Flushed.");
         let mut buffer = [0; 1];
         std::io::stdin().read_exact(&mut buffer).unwrap();
-        
-        self.update_flags(self.rr0);
+
+        self.rr0 = buffer[0] as u16;
+
+        // self.update_flags(self.rr0);
     }
 
-    fn out(&mut self) {
-        print!("{}", std::char::from_u32(self.rr0 as u32).unwrap_or(' '));
-        io::stdout().flush().expect("Flushed.");
+    fn trap_out(&mut self) {
+        let c = self.rr0 as u8;
+        print!("{}", c as char);
+        // io::stdout().flush().expect("Flushed.");
     }
 
     fn trap_puts(&mut self) {
         /* one char per word */
         let mut count = 0;
         loop {
-            let chr = self.memory.read(self.rr0 as usize + count);
+            let chr = self.memory.read((self.rr0 + count) as usize);
             if (chr == 0) {
                 break;
             }
-
-            let chr = std::char::from_u32(chr as u32);
-            print!("{}", chr.unwrap_or(' '));
+            print!("{}", chr as u8 as char);
             count += 1;
         }
 
-        io::stdout().flush().expect("Flushed.");
+        io::stdout().flush().unwrap(); // expect("Flushed.");
     }
 
-    fn in_(&mut self) {
+    fn trap_in_(&mut self) {
         print!("Enter a character: ");
+        // io::stdout().flush().expect("Flushed.");
 
-        let mut buffer = [0; 1];
-        std::io::stdin().read_exact(&mut buffer).unwrap();
-        let chr = std::char::from_u32(buffer[0] as u32);
+        let char = std::io::stdin()
+                .bytes()
+                .next()
+                .and_then(|result| result.ok())
+                .map(|byte| byte as u16)
+                .unwrap();
 
-        print!("{}", std::char::from_u32(self.rr0 as u32).unwrap_or(' '));
-        io::stdout().flush().expect("Flushed.");
-
-        self.rr0 = buffer[0] as u16;
+        self.rr0 = char;
 
         self.update_flags(self.rr0);
     }
@@ -343,20 +391,22 @@ impl CPU {
                 break;
             }
 
-            let chr1 = std::char::from_u32((chr & 0xFF) as u32);
-            print!("{}", chr1.unwrap_or(' '));
-            let chr2 = std::char::from_u32((chr >> 8) as u32);
-            print!("{}", chr2.unwrap_or(' '));
+            let c1 = ((chr & 0xFF) as u8) as char;
+            print!("{}", c1);
+            let c2 = ((chr >> 8) as u8) as char;
+            if c2 != '\0' {
+                print!("{}", c2);
+            }
 
             count += 1;
         }
 
-        io::stdout().flush().expect("Flushed.");
+        // io::stdout().flush().expect("Flushed.");
     }
 
-    fn halt(&mut self) {
+    fn trap_halt(&mut self) {
         println!("HALTING");
-        io::stdout().flush().expect("Flushed.");
+        // io::stdout().flush().expect("Flushed.");
         self.running = false;
     }
 }
