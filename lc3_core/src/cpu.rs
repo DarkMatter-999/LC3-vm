@@ -48,22 +48,22 @@ impl CPU {
             println!("{:x?}", op);
 
             match(OPCodes::from(op)) {
-                OPCodes::OpBr => self.br(),
-                OPCodes::OpAdd => self.add(),
-                OPCodes::OpLd => self.ld(),
-                OPCodes::OpSt => self.st(),
-                OPCodes::OpJsr => self.jsr(),
-                OPCodes::OpAnd => self.and_(),
-                OPCodes::OpLdr => self.ldr(),
-                OPCodes::OpStr => self.str(),
-                OPCodes::OpRti => self.rti(),
-                OPCodes::OpNot => self.not(),
-                OPCodes::OpLdi => self.ldi(),
-                OPCodes::OpSti => self.sti(),
-                OPCodes::OpJmp => self.jmp(),
-                OPCodes::OpRes => self.res(),
-                OPCodes::OpLea => self.lea(),
-                OPCodes::OpTrap => self.trap(),
+                OPCodes::OpBr => self.br(inst),
+                OPCodes::OpAdd => self.add(inst),
+                OPCodes::OpLd => self.ld(inst),
+                OPCodes::OpSt => self.st(inst),
+                OPCodes::OpJsr => self.jsr(inst),
+                OPCodes::OpAnd => self.and_(inst),
+                OPCodes::OpLdr => self.ldr(inst),
+                OPCodes::OpStr => self.str(inst),
+                OPCodes::OpRti => self.rti(inst),
+                OPCodes::OpNot => self.not(inst),
+                OPCodes::OpLdi => self.ldi(inst),
+                OPCodes::OpSti => self.sti(inst),
+                OPCodes::OpJmp => self.jmp(inst),
+                OPCodes::OpRes => self.res(inst),
+                OPCodes::OpLea => self.lea(inst),
+                OPCodes::OpTrap => self.trap(inst),
             }
 
             if(self.pc > 0xffff) {
@@ -78,7 +78,7 @@ impl CPU {
         return inst;
     }
 
-    pub fn load_image(&mut self, image: &Vec<u8>) {
+    pub fn load_image(&self, image: &Vec<u8>) {
         let origin: u16 = ((image[0] as u16) << 8) | (image[1] as u16);
 
         println!("Program Address : {:#01x}", origin);
@@ -100,8 +100,8 @@ impl CPU {
         // println!("{:x?}", &self.memory.memory);
     }
 
-    fn sign_extend(x: u16, bit_count: u16) -> u16 {
-        if ((x >> (bit_count - 1)) & 1) > 0 {
+    fn sign_extend(&mut self, x: u16, bit_count: u16) -> u16 {
+        if ((x >> (bit_count - 1)) & 1) != 0 {
             x |= (0xFFFF << bit_count);
         }
 
@@ -128,11 +128,68 @@ impl CPU {
     fn update_flags(&mut self, r: u16) {
         if (*self.get_reg(r) == 0) {
             self.rcond = Flags::value(&Flags::FlZro);
-        } else if ((*self.get_reg(r) >> 15) > 0) {
+        } else if ((*self.get_reg(r) >> 15) != 0) {
             /* a 1 in the left-most bit indicates negative */
             self.rcond = Flags::value(&Flags::FlNeg);
         } else {
             self.rcond = Flags::value(&Flags::FlPos);
+        }
+    }
+
+    fn br(&mut self, inst: u16) {
+        let offset = self.sign_extend(inst & 0x1ff, 9);
+        let cond_flag = (inst >> 9) & 0x7;
+
+        if ((cond_flag & self.rcond) != 0) {
+            self.pc += offset as usize;
+        }
+    }
+
+    fn add(&mut self, inst: u16) {
+        /* destination register (DR) */
+        let r0 = (inst >> 9) & 0x7;
+
+        /* first operand (SR1) */
+        let r1 = (inst >> 6) & 0x7;
+
+        /* whether we are in immediate mode */
+        let imm_flag = (inst >> 5) & 0x1;
+
+        if (imm_flag != 0) {
+            let imm5 = self.sign_extend(inst & 0x1F, 5);
+            self.rr0 = self.rr1 + imm5;
+        } else {
+            let r2 = inst & 0x7;
+            self.rr0 = self.rr1 + self.rr2;
+        }
+
+        self.update_flags(r0);
+    }
+
+    fn ld(&mut self, inst: u16) {
+        let r0 = (inst >> 9) & 0x7;
+        let pc_offset = self.sign_extend(inst & 0x1FF, 9) as usize;
+        self.rr0 = self.memory.read(self.pc + pc_offset);
+        
+        self.update_flags(r0);
+    }
+
+    fn st(&mut self, inst: u16) {
+        let r0 = (inst >> 9) & 0x7;
+        let pc_offset = self.sign_extend(inst & 0x1FF, 9) as usize;
+        self.memory.write(self.pc + pc_offset, self.rr0);
+    }
+
+    fn jsr(&mut self, inst: u16) {
+        let long_flag = (inst >> 11) & 1;
+        self.rr7 = self.pc as u16;
+
+        if (long_flag != 0) {
+            let long_pc_offset = self.sign_extend(inst & 0x7FF, 11);
+            self.pc += long_pc_offset as usize;  /* JSR */
+        } else {
+            let r1 = (inst >> 6) & 0x7;
+            self.pc = self.rr1 as usize; /* JSRR */
         }
     }
 }
