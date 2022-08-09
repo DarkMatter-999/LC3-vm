@@ -78,7 +78,7 @@ impl CPU {
         return inst;
     }
 
-    pub fn load_image(&self, image: &Vec<u8>) {
+    pub fn load_image(&mut self, image: &Vec<u8>) {
         let origin: u16 = ((image[0] as u16) << 8) | (image[1] as u16);
 
         println!("Program Address : {:#01x}", origin);
@@ -101,6 +101,7 @@ impl CPU {
     }
 
     fn sign_extend(&mut self, x: u16, bit_count: u16) -> u16 {
+        let mut x = x;
         if ((x >> (bit_count - 1)) & 1) != 0 {
             x |= (0xFFFF << bit_count);
         }
@@ -229,7 +230,7 @@ impl CPU {
     }
 
     fn rti(&mut self, inst: u16) {
-        panic!("Unused OPCodes RTI");
+        panic!("Unused OPCode RTI");
     }
 
     fn not(&mut self, inst: u16) {
@@ -256,5 +257,26 @@ impl CPU {
         let r0 = (inst >> 9) & 0x7;
         let pc_offset = self.sign_extend(inst & 0x1FF, 9) as usize;
         self.memory.write(self.memory.read(self.pc + pc_offset) as usize, self.rr0);
+    }
+
+    fn jmp(&mut self, inst: u16) {
+        let r1 = (inst >> 6) & 0x7;
+        self.pc = self.rr1 as usize;
+    }
+
+    fn res(&mut self, inst: u16) {
+        panic!("Unused OPCode RES");
+    }
+
+    fn lea(&mut self, inst: u16) {
+        let r0 = (inst >> 9) & 0x7;
+        let pc_offset = self.sign_extend(inst & 0x1FF, 9);
+        self.rr0 = self.pc as u16 + pc_offset;
+        
+        self.update_flags(r0);
+    }
+
+    fn trap(&mut self, inst: u16) {
+        // TODO implementaion
     }
 }
