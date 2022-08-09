@@ -192,4 +192,69 @@ impl CPU {
             self.pc = self.rr1 as usize; /* JSRR */
         }
     }
+
+    fn and_(&mut self, inst: u16) {
+        let r0 = (inst >> 9) & 0x7;
+        let r1 = (inst >> 6) & 0x7;
+        let imm_flag = (inst >> 5) & 0x1;
+
+        if (imm_flag != 0)
+        {
+            let imm5 = self.sign_extend(inst & 0x1F, 5);
+            self.rr0 = self.rr1 & imm5;
+        }
+        else
+        {
+            let r2 = inst & 0x7;
+            self.rr0 = self.rr1 & self.rr2;
+        }
+        
+        self.update_flags(r0);
+    }
+
+    fn ldr(&mut self, inst: u16) {
+        let r0 = (inst >> 9) & 0x7;
+        let r1 = (inst >> 6) & 0x7;
+        let offset = self.sign_extend(inst & 0x3F, 6);
+        self.rr0 = self.memory.read((self.rr1 + offset) as usize);
+        
+        self.update_flags(r0);
+    }
+
+    fn str(&mut self, inst: u16) {
+        let r0 = (inst >> 9) & 0x7;
+        let r1 = (inst >> 6) & 0x7;
+        let offset = self.sign_extend(inst & 0x3F, 6);
+        self.memory.write((self.rr1 + offset) as usize, self.rr0);
+    }
+
+    fn rti(&mut self, inst: u16) {
+        panic!("Unused OPCodes RTI");
+    }
+
+    fn not(&mut self, inst: u16) {
+        let r0 = (inst >> 9) & 0x7;
+        let r1 = (inst >> 6) & 0x7;
+
+        self.rr0 = !self.rr1;
+        self.update_flags(r0);
+    }
+
+    fn ldi(&mut self, inst: u16) {
+        /* destination register (DR) */
+        let r0 = (inst >> 9) & 0x7;
+
+        /* PCoffset 9*/
+        let pc_offset = self.sign_extend(inst & 0x1FF, 9) as usize;
+
+        /* add pc_offset to the current PC, look at that memory location to get the final address */
+        self.rr0 = self.memory.read(self.memory.read(self.pc + pc_offset) as usize);
+        self.update_flags(r0);
+    }
+
+    fn sti(&mut self, inst: u16) {
+        let r0 = (inst >> 9) & 0x7;
+        let pc_offset = self.sign_extend(inst & 0x1FF, 9) as usize;
+        self.memory.write(self.memory.read(self.pc + pc_offset) as usize, self.rr0);
+    }
 }
