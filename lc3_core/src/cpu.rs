@@ -3,6 +3,7 @@ use std::io::Write;
 use crate::memory::{Mem, self};
 use crate::instructions::*;
 
+use super::*;
 
 const PC_START: usize = 0x3000;
 

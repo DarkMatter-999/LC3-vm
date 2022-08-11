@@ -3,13 +3,6 @@
 version = 3
 
 [[package]]
-name = "LC3"
-version = "0.1.0"
-dependencies = [
- "lc3_core",
-]
-
-[[package]]
 name = "bumpalo"
 version = "3.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

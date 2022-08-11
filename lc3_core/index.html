@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LC3</title>
+</head>
+<body>
+    <input type="file" name="rom" id="rom">
+    <div id="root"></div>
+
+    <button id="run" disabled>Run</button>
+
+    <script type="module">
+        import init, {test, runimage} from "./pkg/lc3_core.js";
+
+        async function main() {
+            await init();
+
+            let a = test("asddxxxx");
+            console.log(a);
+        }
+        main();
+
+        var rom = new Uint8Array();
+        let run_button = document.getElementById("run");
+        run_button.addEventListener("click", () => {
+            console.log(rom);
+            runimage(rom);
+        });
+
+        // let file_upload = document.getElementById("rom").files[0]
+
+        function load_rom(file_upload) {
+            var file = file_upload.target.files[0];
+            if (file.type === "") {
+                console.log("Loading rom file");
+            }
+            var reader = new FileReader();
+            
+            reader.onload = function(anotherEvent) {
+                rom = Array.from(new Uint8Array(reader.result));
+            }
+            reader.readAsArrayBuffer(file);
+
+            run_button.disabled = false;
+        }
+
+        document.getElementById("rom").addEventListener("change", load_rom, false);
+                
+    </script>
+</body>
+</html>

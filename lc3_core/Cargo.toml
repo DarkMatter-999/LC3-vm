@@ -5,4 +5,13 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+crate-type = ["cdylib"]
+
 [dependencies]
+wasm-bindgen = { version = "0.2.82", features = ["serde-serialize"] }
+serde = { version = "1.0", features = ["derive"] }
+
+[profile.release]
+lto = true
+opt-level = 3
