@@ -1,5 +1,6 @@
 use std::io::{self, Read};
 use std::io::Write;
+use crate::io::{get_key, print};
 use crate::memory::{Mem, self};
 use crate::instructions::*;
 
@@ -336,19 +337,16 @@ impl CPU {
     }
 
     fn trap_getc(&mut self) {
-        // io::stdout().flush().expect("Flushed.");
-        let mut buffer = [0; 1];
-        std::io::stdin().read_exact(&mut buffer).unwrap();
+        let ch = get_key();
 
-        self.rr0 = buffer[0] as u16;
+        self.rr0 = ch as u16;
 
         // self.update_flags(self.rr0);
     }
 
     fn trap_out(&mut self) {
         let c = self.rr0 as u8;
-        print!("{}", c as char);
-        // io::stdout().flush().expect("Flushed.");
+        print(c);
     }
 
     fn trap_puts(&mut self) {
@@ -359,7 +357,7 @@ impl CPU {
             if (chr == 0) {
                 break;
             }
-            print!("{}", chr as u8 as char);
+            print(chr as u8);
             count += 1;
         }
 
@@ -368,7 +366,6 @@ impl CPU {
 
     fn trap_in_(&mut self) {
         print!("Enter a character: ");
-        // io::stdout().flush().expect("Flushed.");
 
         let char = std::io::stdin()
                 .bytes()
@@ -393,22 +390,19 @@ impl CPU {
                 break;
             }
 
-            let c1 = ((chr & 0xFF) as u8) as char;
-            print!("{}", c1);
-            let c2 = ((chr >> 8) as u8) as char;
-            if c2 != '\0' {
-                print!("{}", c2);
+            let c1 = ((chr & 0xFF) as u8);
+            print(c1);
+            let c2 = ((chr >> 8) as u8);
+            if c2 != '\0' as u8 {
+                print(c2);
             }
 
             count += 1;
         }
-
-        // io::stdout().flush().expect("Flushed.");
     }
 
     fn trap_halt(&mut self) {
         println!("HALTING");
-        // io::stdout().flush().expect("Flushed.");
         self.running = false;
     }
 }
