@@ -80,6 +80,7 @@ impl OPCodes {
     }
 }
 
+#[derive(Debug)]
 pub enum TrapCodes{
     TrapGetC,
     TrapOut,

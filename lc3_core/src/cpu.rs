@@ -1,5 +1,6 @@
 use std::io::{self, Read};
 use std::io::Write;
+use crate::disassembler::disassemble;
 use crate::io::{get_key, print};
 use crate::memory::{Mem, self};
 use crate::instructions::*;
@@ -48,6 +49,8 @@ impl CPU {
 
         while(self.running) {
             let inst = self.fetch();
+
+            disassemble(inst);
 
             let op = inst >> 12;
 
@@ -208,7 +211,8 @@ impl CPU {
         let pc_offset = self.sign_extend(inst & 0x1FF, 9);
 
         let val = (self.pc as u16).wrapping_add(pc_offset);
-        self.memory.write(val as usize, self.rr0);
+        let r0 = *self.get_reg(r0);
+        self.memory.write(val as usize, r0);
     }
 
     fn jsr(&mut self, inst: u16) {
